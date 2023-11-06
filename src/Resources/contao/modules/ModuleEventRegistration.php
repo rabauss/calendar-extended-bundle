@@ -10,6 +10,11 @@
 
 namespace Kmielke\CalendarExtendedBundle;
 
+use Contao\BackendTemplate;
+use Contao\FrontendTemplate;
+use Contao\Input;
+use Contao\Module;
+use Contao\System;
 use NotificationCenter\Model\Notification;
 
 use Kmielke\CalendarExtendedBundle\CalendarLeadsModel;
@@ -20,7 +25,7 @@ use Kmielke\CalendarExtendedBundle\CalendarEventsModelExt;
  *
  * @author     Kester Mielke
  */
-class ModuleEventRegistration extends \Module
+class ModuleEventRegistration extends Module
 {
 
     /**
@@ -38,9 +43,9 @@ class ModuleEventRegistration extends \Module
     public function generate()
     {
         if (TL_MODE == 'BE') {
-            $objTemplate = new \BackendTemplate('be_wildcard');
+            $objTemplate = new BackendTemplate('be_wildcard');
 
-            $objTemplate->wildcard = '### ' . utf8_strtoupper($GLOBALS['TL_LANG']['FMD']['evr_registration'][0]) . ' ###';
+            $objTemplate->wildcard = '### ' . mb_strtoupper($GLOBALS['TL_LANG']['FMD']['evr_registration'][0]) . ' ###';
             $objTemplate->title = $this->headline;
             $objTemplate->id = $this->id;
             $objTemplate->link = $this->name;
@@ -58,10 +63,10 @@ class ModuleEventRegistration extends \Module
      */
     protected function compile()
     {
-        \System::loadLanguageFile('tl_module');
+        System::loadLanguageFile('tl_module');
 
-        /** @var \FrontendTemplate|object $objTemplate */
-        $objTemplate = new \FrontendTemplate('evr_registration');
+        /** @var FrontendTemplate|object $objTemplate */
+        $objTemplate = new FrontendTemplate('evr_registration');
 
         $objTemplate->hasError = false;
         $msgError = array();
@@ -73,9 +78,9 @@ class ModuleEventRegistration extends \Module
         $ncid = $this->nc_notification;
 
         // Get the input parameter
-        $lead_id = (\Input::get('lead')) ? \Input::get('lead') : false;
-        $event_id = (\Input::get('event')) ? \Input::get('event') : false;
-        $email = (\Input::get('email')) ? \Input::get('email') : false;
+        $lead_id = (Input::get('lead')) ? Input::get('lead') : false;
+        $event_id = (Input::get('event')) ? Input::get('event') : false;
+        $email = (Input::get('email')) ? Input::get('email') : false;
 
         // Fehler anzeigen, wenn parameter fehlen
         if (!$lead_id || !$event_id || !$email ) {

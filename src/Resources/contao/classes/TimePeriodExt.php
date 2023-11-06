@@ -17,6 +17,7 @@
  */
 namespace Kmielke\CalendarExtendedBundle;
 
+use Contao\StringUtil;
 use Contao\Widget;
 
 /**
@@ -63,7 +64,7 @@ class TimePeriodExt extends Widget
     {
         switch ($strKey) {
             case 'value':
-                $this->varValue = deserialize($varValue);
+                $this->varValue = StringUtil::deserialize($varValue);
                 break;
 
             case 'maxlength':
@@ -75,7 +76,7 @@ class TimePeriodExt extends Widget
                 break;
 
             case 'options':
-                $varValue = deserialize($varValue);
+                $varValue = StringUtil::deserialize($varValue);
                 $this->arrValues = $varValue[0];
                 $this->arrUnits = $varValue[1];
                 break;
@@ -116,14 +117,14 @@ class TimePeriodExt extends Widget
         //$arrValues[] = '<option value="">-</option>';
         foreach ($this->arrValues as $arrValue) {
             $arrValues[] = sprintf('<option value="%s"%s>%s</option>',
-                specialchars($arrValue['value']),
+                StringUtil::specialchars($arrValue['value']),
                 ((is_array($this->varValue) && in_array($arrValue['value'], $this->varValue)) ? ' selected="selected"' : ''),
                 $arrValue['label']);
         }
 
         foreach ($this->arrUnits as $arrUnit) {
             $arrUnits[] = sprintf('<option value="%s"%s>%s</option>',
-                specialchars($arrUnit['value']),
+                StringUtil::specialchars($arrUnit['value']),
                 ((is_array($this->varValue) && in_array($arrUnit['value'], $this->varValue)) ? ' selected="selected"' : ''),
                 $arrUnit['label']);
         }

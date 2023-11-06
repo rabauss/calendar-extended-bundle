@@ -17,8 +17,15 @@
  */
 namespace Kmielke\CalendarExtendedBundle;
 
+use Contao\BackendTemplate;
+use Contao\Config;
 use Contao\Date;
-
+use Contao\Environment;
+use Contao\FrontendTemplate;
+use Contao\Input;
+use Contao\PageError404;
+use Contao\PageModel;
+use Contao\StringUtil;
 use Kmielke\CalendarExtendedBundle\EventsExt;
 
 /**
@@ -33,7 +40,7 @@ class ModuleTimeTable extends EventsExt
 
     /**
      * Current date object
-     * @var integer
+     * @var integer|Date
      */
     protected $Date;
     protected $weekBegin;
@@ -61,9 +68,9 @@ class ModuleTimeTable extends EventsExt
     public function generate()
     {
         if (TL_MODE == 'BE') {
-            $objTemplate = new \BackendTemplate('be_wildcard');
+            $objTemplate = new BackendTemplate('be_wildcard');
 
-            $objTemplate->wildcard = '### ' . utf8_strtoupper($GLOBALS['TL_LANG']['FMD']['timetable'][0]) . ' ###';
+            $objTemplate->wildcard = '### ' . mb_strtoupper($GLOBALS['TL_LANG']['FMD']['timetable'][0]) . ' ###';
             $objTemplate->title = $this->headline;
             $objTemplate->id = $this->id;
             $objTemplate->link = $this->name;
@@ -72,8 +79,8 @@ class ModuleTimeTable extends EventsExt
             return $objTemplate->parse();
         }
 
-        $this->cal_calendar = $this->sortOutProtected(deserialize($this->cal_calendar, true));
-        $this->cal_holiday = $this->sortOutProtected(deserialize($this->cal_holiday, true));
+        $this->cal_calendar = $this->sortOutProtected(StringUtil::deserialize($this->cal_calendar, true));
+        $this->cal_holiday = $this->sortOutProtected(StringUtil::deserialize($this->cal_holiday, true));
 
         // Return if there are no calendars
         if (!is_array($this->cal_calendar) || empty($this->cal_calendar)) {
@@ -81,9 +88,9 @@ class ModuleTimeTable extends EventsExt
         }
 
         // Calendar filter
-        if (\Input::get('cal')) {
+        if (Input::get('cal')) {
             // Create array of cal_id's to filter 
-            $cals1 = explode(',', \Input::get('cal'));
+            $cals1 = explode(',', Input::get('cal'));
             // Check if the cal_id's are valid for this module
             $cals2 = array_intersect($cals1, $this->cal_calendar);
             if ($cals2) {
@@ -99,7 +106,7 @@ class ModuleTimeTable extends EventsExt
             $this->calConf[$cal]['calendar'] = $objBG->title;
 
             if ($objBG->bg_color) {
-                list($cssColor, $cssOpacity) = deserialize($objBG->bg_color);
+                list($cssColor, $cssOpacity) = StringUtil::deserialize($objBG->bg_color);
 
                 if (!empty($cssColor)) {
                     $this->calConf[$cal]['background'] .= 'background-color:#' . $cssColor . ';';
@@ -110,7 +117,7 @@ class ModuleTimeTable extends EventsExt
             }
 
             if ($objBG->fg_color) {
-                list($cssColor, $cssOpacity) = deserialize($objBG->fg_color);
+                list($cssColor, $cssOpacity) = StringUtil::deserialize($objBG->fg_color);
 
                 if (!empty($cssColor)) {
                     $this->calConf[$cal]['foreground'] .= 'color:#' . $cssColor . ';';
@@ -121,11 +128,11 @@ class ModuleTimeTable extends EventsExt
             }
         }
 
-        $this->strUrl = preg_replace('/\?.*$/', '', \Environment::get('request'));
+        $this->strUrl = preg_replace('/\?.*$/', '', Environment::get('request'));
         $this->strLink = $this->strUrl;
 
         if ($this->jumpTo && ($objTarget = $this->objModel->getRelated('jumpTo')) !== null) {
-            /** @var \PageModel $objTarget */
+            /** @var PageModel $objTarget */
             $this->strLink = $objTarget->getFrontendUrl();
         }
 
@@ -141,29 +148,29 @@ class ModuleTimeTable extends EventsExt
         // Create the date object
         try {
             // Respond to month
-            if (\Input::get('month')) {
-                $this->Date = new \Date(\Input::get('month') . '01', 'Ymd');
+            if (Input::get('month')) {
+                $this->Date = new Date(Input::get('month') . '01', 'Ymd');
             } // Respond to week
-            elseif (\Input::get('week')) {
-                $selYear = (int)substr(\Input::get('week'), 0, 4);
-                $selWeek = (int)substr(\Input::get('week'), -2);
+            elseif (Input::get('week')) {
+                $selYear = (int)substr(Input::get('week'), 0, 4);
+                $selWeek = (int)substr(Input::get('week'), -2);
                 $selDay = ($selWeek == 1) ? 4 : 1;
                 $dt = new \DateTime();
                 $dt->setISODate($selYear, $selWeek, $selDay);
-                $this->Date = new \Date($dt->format('Ymd'), 'Ymd');
+                $this->Date = new Date($dt->format('Ymd'), 'Ymd');
                 unset($dt);
             } // Respond to day
-            elseif (\Input::get('day')) {
-                $this->Date = new \Date(\Input::get('day'), 'Ymd');
+            elseif (Input::get('day')) {
+                $this->Date = new Date(Input::get('day'), 'Ymd');
             } // Fallback to today
             else {
-                $this->Date = new \Date();
+                $this->Date = new Date();
             }
         } catch (\OutOfBoundsException $e) {
-            /** @var \PageModel $objPage */
+            /** @var PageModel $objPage */
             global $objPage;
 
-            /** @var \PageError404 $objHandler */
+            /** @var PageError404 $objHandler */
             $objHandler = new $GLOBALS['TL_PTY']['error_404']();
             $objHandler->generate($objPage->id);
         }
@@ -197,15 +204,15 @@ class ModuleTimeTable extends EventsExt
             $weeksTotal = date('W', mktime(0, 0, 0, 12, 24, $intYear));
         }
 
-        $time = \Date::floorToMinute();
+        $time = Date::floorToMinute();
 
         // Find the boundaries
         $objMinMax = $this->Database->query("SELECT MIN(startTime) AS dateFrom, MAX(endTime) AS dateTo, MAX(repeatEnd) AS repeatUntil FROM tl_calendar_events WHERE pid IN(" . implode(',', array_map('intval', $this->cal_calendar)) . ")" . (!BE_USER_LOGGED_IN ? " AND (start='' OR start<$time) AND (stop='' OR stop>$time) AND published=1" : ""));
         $intLeftBoundary = date('YW', $objMinMax->dateFrom);
         $intRightBoundary = date('YW', max($objMinMax->dateTo, $objMinMax->repeatUntil));
 
-        /** @var \FrontendTemplate|object $objTemplate */
-        $objTemplate = new \FrontendTemplate(($this->cal_ctemplate ? $this->cal_ctemplate : 'cal_timetable'));
+        /** @var FrontendTemplate|object $objTemplate */
+        $objTemplate = new FrontendTemplate(($this->cal_ctemplate ? $this->cal_ctemplate : 'cal_timetable'));
 
         $objTemplate->intYear = $intYear;
         $objTemplate->intWeek = $intWeek;
@@ -223,8 +230,8 @@ class ModuleTimeTable extends EventsExt
                 $currYear = date('o');
                 $currWeek = (int)date('W');
                 $lblCurrent = $GLOBALS['TL_LANG']['MSC']['curr_week'];
-                $objTemplate->currHref = $this->strUrl . (\Config::get('disableAlias') ? '?id=' . \Input::get('id') . '&amp;' : '?') . 'week=' . $currYear . str_pad($currWeek, 2, 0, STR_PAD_LEFT);
-                $objTemplate->currTitle = specialchars($lblCurrent);
+                $objTemplate->currHref = $this->strUrl . (Config::get('disableAlias') ? '?id=' . Input::get('id') . '&amp;' : '?') . 'week=' . $currYear . str_pad($currWeek, 2, 0, STR_PAD_LEFT);
+                $objTemplate->currTitle = StringUtil::specialchars($lblCurrent);
                 $objTemplate->currLink = $lblCurrent;
                 $objTemplate->currLabel = $GLOBALS['TL_LANG']['MSC']['cal_previous'];
             }
@@ -237,15 +244,15 @@ class ModuleTimeTable extends EventsExt
 
 //            if ($intPrevYm >= $intLeftBoundary)
 //            {
-            $objTemplate->prevHref = $this->strUrl . (\Config::get('disableAlias') ? '?id=' . \Input::get('id') . '&amp;' : '?') . 'week=' . $prevYear . str_pad($prevWeek, 2, 0, STR_PAD_LEFT);
-            $objTemplate->prevTitle = specialchars($lblPrevious);
+            $objTemplate->prevHref = $this->strUrl . (Config::get('disableAlias') ? '?id=' . Input::get('id') . '&amp;' : '?') . 'week=' . $prevYear . str_pad($prevWeek, 2, 0, STR_PAD_LEFT);
+            $objTemplate->prevTitle = StringUtil::specialchars($lblPrevious);
             $objTemplate->prevLink = $GLOBALS['TL_LANG']['MSC']['cal_previous'] . ' ' . $lblPrevious;
             $objTemplate->prevLabel = $GLOBALS['TL_LANG']['MSC']['cal_previous'];
 //            }
 
             // Current week
-            $dateInfo = \Date::parse($GLOBALS['TL_CONFIG']['dateFormat'], $this->weekBegin) . ' - ' .
-                \Date::parse($GLOBALS['TL_CONFIG']['dateFormat'], $this->weekEnd);
+            $dateInfo = Date::parse($GLOBALS['TL_CONFIG']['dateFormat'], $this->weekBegin) . ' - ' .
+                Date::parse($GLOBALS['TL_CONFIG']['dateFormat'], $this->weekEnd);
 
             $objTemplate->current = $GLOBALS['TL_LANG']['MSC']['calendar_week'] . ' ' . $intWeek . ' ' . $intYear;
 
@@ -259,8 +266,8 @@ class ModuleTimeTable extends EventsExt
             // Only generate a link if there are events (see #4160)
 //            if ($intNextYm <= $intRightBoundary)
 //            {
-            $objTemplate->nextHref = $this->strUrl . (\Config::get('disableAlias') ? '?id=' . \Input::get('id') . '&amp;' : '?') . 'week=' . $nextYear . str_pad($nextWeek, 2, 0, STR_PAD_LEFT);
-            $objTemplate->nextTitle = specialchars($lblNext);
+            $objTemplate->nextHref = $this->strUrl . (Config::get('disableAlias') ? '?id=' . Input::get('id') . '&amp;' : '?') . 'week=' . $nextYear . str_pad($nextWeek, 2, 0, STR_PAD_LEFT);
+            $objTemplate->nextTitle = StringUtil::specialchars($lblNext);
             $objTemplate->nextLink = $lblNext . ' ' . $GLOBALS['TL_LANG']['MSC']['cal_next'];
             $objTemplate->nextLabel = $GLOBALS['TL_LANG']['MSC']['cal_next'];
 //            }
@@ -305,7 +312,7 @@ class ModuleTimeTable extends EventsExt
                 $intCurrentDay = ($i + $this->cal_startDay) % 7;
 
                 $intKey = date("Ymd", strtotime(date("Y-m-d", $this->weekBegin) . " +$i day"));
-                $currDay = \Date::parse($GLOBALS['TL_CONFIG']['dateFormat'], strtotime(date("Y-m-d", $this->weekBegin) . " +$i day"));
+                $currDay = Date::parse($GLOBALS['TL_CONFIG']['dateFormat'], strtotime(date("Y-m-d", $this->weekBegin) . " +$i day"));
 
                 // Here we have to get the valid times
                 if (is_array($arrAllEvents[$intKey])) {
@@ -331,7 +338,7 @@ class ModuleTimeTable extends EventsExt
             $arrTimes['start'] = substr($arrTimes['start'], 0, 2);
             $arrTimes['stop'] = substr($arrTimes['stop'], 0, 2);
 
-            $timerange = deserialize($this->cal_times_range)[0];
+            $timerange = StringUtil::deserialize($this->cal_times_range)[0];
             if ($timerange['time_from']) {
                 $arrTimes['start'] = substr($timerange['time_from'], 0, 2);
             }
@@ -358,14 +365,14 @@ class ModuleTimeTable extends EventsExt
             $intCurrentDay = ($i + $this->cal_startDay) % 7;
 
             $intKey = date("Ymd", strtotime(date("Y-m-d", $this->weekBegin) . " +$i day"));
-            $currDay = \Date::parse($GLOBALS['TL_CONFIG']['dateFormat'], strtotime(date("Y-m-d", $this->weekBegin) . " +$i day"));
+            $currDay = Date::parse($GLOBALS['TL_CONFIG']['dateFormat'], strtotime(date("Y-m-d", $this->weekBegin) . " +$i day"));
 
             $class = ($intCurrentDay == 0 || $intCurrentDay == 6 || $intCurrentDay == 7) ? 'weekend' : 'weekday';
             $class .= (($intCurrentDay % 2) == 0) ? ' even' : ' odd';
             $class .= ' ' . strtolower($GLOBALS['TL_LANG']['DAYS'][$intCurrentDay]);
             $class .= ($intCurrentDay == 0) ? ' last' : '';
 
-            if ($currDay == \Date::parse($GLOBALS['TL_CONFIG']['dateFormat'], strtotime(date("Y-m-d")))) {
+            if ($currDay == Date::parse($GLOBALS['TL_CONFIG']['dateFormat'], strtotime(date("Y-m-d")))) {
                 $class .= ' today';
             }
 

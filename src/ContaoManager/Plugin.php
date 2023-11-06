@@ -36,6 +36,7 @@ class Plugin implements BundlePluginInterface
                     [
                         'Contao\CoreBundle\ContaoCoreBundle',
                         'Contao\CalendarBundle\ContaoCalendarBundle',
+                        'leads',
                         'MenAtWork\MultiColumnWizard'
                     ]
                 )

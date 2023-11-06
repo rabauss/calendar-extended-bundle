@@ -18,7 +18,10 @@
  */
 
 // Palette for calendar
+use Contao\Backend;
 use Contao\Controller;
+use Contao\System;
+use Leads\Leads;
 use NotificationCenter\Model\Notification;
 
 $GLOBALS['TL_DCA']['tl_module']['palettes']['calendar'] = str_replace
@@ -376,7 +379,7 @@ $GLOBALS['TL_DCA']['tl_module']['fields']['filter_fields'] = array
  * @author     Kester Mielke
  * @package    Controller
  */
-class calendar_Ext extends \Backend
+class calendar_Ext extends Backend
 {
 
     /**
@@ -395,8 +398,8 @@ class calendar_Ext extends \Backend
     public function getEventField()
     {
         // Load tl_calendar_events data
-        \Controller::loadDataContainer('tl_calendar_events');
-        \System::loadLanguageFile('tl_calendar_events');
+        Controller::loadDataContainer('tl_calendar_events');
+        System::loadLanguageFile('tl_calendar_events');
 
         // Get the event fields
         $arr_fields = ($GLOBALS['TL_CONFIG']['tl_calendar_events']['filter'])
@@ -405,7 +408,7 @@ class calendar_Ext extends \Backend
 
         $event_fields = [];
         foreach ($arr_fields as $k => $v) {
-            if (strlen($GLOBALS['TL_LANG']['tl_calendar_events'][$k][0])) {
+            if (!empty($GLOBALS['TL_LANG']['tl_calendar_events'][$k][0])) {
                 $label = (!empty($v['label'])) ? $v['label'] : $GLOBALS['TL_LANG']['tl_calendar_events'][$k][0];
                 $event_fields[$k] = $label;
             }
@@ -416,11 +419,11 @@ class calendar_Ext extends \Backend
 
 
     /**
-     * @return array
+     * @return array|null
      */
     public function listNotifications()
     {
-        if (!class_exists('leads\leads')) {
+        if (!class_exists(Leads::class)) {
             return null;
         }
 
@@ -502,7 +505,7 @@ class calendar_Ext extends \Backend
      */
     public function checkDuration($varValue)
     {
-        if (strlen($varValue) > 0) {
+        if (!empty($varValue) > 0) {
             if (($timestamp = date('dmY', strtotime($varValue, time()))) === date('dmY', time())) {
                 throw new \Exception($GLOBALS['TL_LANG']['tl_module']['displayDurationError2'] . ': ' . $timestamp);
             }
@@ -518,7 +521,7 @@ class calendar_Ext extends \Backend
      */
     public function checkCalFormat($varValue)
     {
-        if (strlen($varValue) > 0) {
+        if (!empty($varValue) > 0) {
             if (($timestamp = date('dmYHis', strtotime($varValue, time()))) === date('dmYHis', time())) {
                 throw new \Exception($GLOBALS['TL_LANG']['tl_module']['displayDurationError2'] . ': ' . $timestamp);
             }

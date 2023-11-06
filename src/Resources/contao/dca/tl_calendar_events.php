@@ -11,10 +11,22 @@
  * @copyright Kester Mielke 2009-2018
  */
 
+use Contao\ArrayUtil;
+use Contao\Backend;
+use Contao\CalendarModel;
+use Contao\Database;
+use Contao\DataContainer;
+use Contao\Date;
+use Contao\FormModel;
+use Contao\Input;
+use Contao\Message;
+use Contao\StringUtil;
+use Leads\Leads;
+
 foreach ($GLOBALS['TL_DCA']['tl_calendar_events']['config']['onsubmit_callback'] as $k => $v) {
     if ($v[0] == 'tl_calendar_events' && $v[1] == 'adjustTime') {
         unset($GLOBALS['TL_DCA']['tl_calendar_events']['config']['onsubmit_callback'][$k]);
-        array_insert($GLOBALS['TL_DCA']['tl_calendar_events']['config']['onsubmit_callback'], 0,
+        ArrayUtil::arrayInsert($GLOBALS['TL_DCA']['tl_calendar_events']['config']['onsubmit_callback'], 0,
             array(
                 array('tl_calendar_events_ext', 'adjustTime'),
                 array('tl_calendar_events_ext', 'checkOverlapping')
@@ -54,7 +66,7 @@ $GLOBALS['TL_DCA']['tl_calendar_events']['palettes']['external'] = str_replace
     $GLOBALS['TL_DCA']['tl_calendar_events']['palettes']['external']
 );
 
-if (class_exists('leads\leads')) {
+if (class_exists(Leads::class)) {
     $GLOBALS['TL_DCA']['tl_calendar_events']['palettes']['default'] = str_replace
     (
         '{recurring_legend},recurring;',
@@ -107,9 +119,9 @@ if (class_exists('leads\leads')) {
 }
 
 // change the default palettes
-array_insert($GLOBALS['TL_DCA']['tl_calendar_events']['palettes']['__selector__'], 99, 'recurringExt');
-array_insert($GLOBALS['TL_DCA']['tl_calendar_events']['palettes']['__selector__'], 99, 'useExceptions');
-array_insert($GLOBALS['TL_DCA']['tl_calendar_events']['palettes']['__selector__'], 99, 'useRegistration');
+ArrayUtil::arrayInsert($GLOBALS['TL_DCA']['tl_calendar_events']['palettes']['__selector__'], 99, 'recurringExt');
+ArrayUtil::arrayInsert($GLOBALS['TL_DCA']['tl_calendar_events']['palettes']['__selector__'], 99, 'useExceptions');
+ArrayUtil::arrayInsert($GLOBALS['TL_DCA']['tl_calendar_events']['palettes']['__selector__'], 99, 'useRegistration');
 
 // change the default palettes
 $GLOBALS['TL_DCA']['tl_calendar_events']['subpalettes']['recurring'] = str_replace
@@ -487,7 +499,7 @@ use Kmielke\CalendarExtendedBundle\CalendarEventsModelExt;
  * @author     Kester Mielke
  * @package    Controller
  */
-class tl_calendar_events_ext extends \Backend
+class tl_calendar_events_ext extends Backend
 {
 
     /**
@@ -502,7 +514,7 @@ class tl_calendar_events_ext extends \Backend
 
     /**
      * @param $varValue
-     * @return null
+     * @return null|int
      */
     public function getWeekday($varValue)
     {
@@ -516,11 +528,11 @@ class tl_calendar_events_ext extends \Backend
     /**
      * Just check that only one option is active for recurring events
      * @param $varValue
-     * @param \DataContainer $dc
+     * @param DataContainer $dc
      * @return mixed
      * @throws \Exception
      */
-    public function checkRecurring($varValue, \DataContainer $dc)
+    public function checkRecurring($varValue, DataContainer $dc)
     {
         if ($varValue) {
             if ($dc->activeRecord->recurring && $dc->activeRecord->recurringExt) {
@@ -535,11 +547,11 @@ class tl_calendar_events_ext extends \Backend
     /**
      * Just check if any kind of recurring is in use
      * @param $varValue
-     * @param \DataContainer $dc
+     * @param DataContainer $dc
      * @return mixed
      * @throws \Exception
      */
-    public function checkExceptions($varValue, \DataContainer $dc)
+    public function checkExceptions($varValue, DataContainer $dc)
     {
         if ($varValue) {
             if (!$dc->activeRecord->recurring && !$dc->activeRecord->recurringExt) {
@@ -552,12 +564,12 @@ class tl_calendar_events_ext extends \Backend
 
 
     /**
-     * @param \DataContainer $dc
+     * @param DataContainer $dc
      * @return mixed
      * @throws \Exception
      * @return boolean
      */
-    public function checkOverlapping(\DataContainer $dc)
+    public function checkOverlapping(DataContainer $dc)
     {
         // Return if there is no active record (override all)
         if (!$dc->activeRecord) {
@@ -576,7 +588,7 @@ class tl_calendar_events_ext extends \Backend
         $intStart = strtotime(date('d.m.Y', $intStart) . ' 00:00');
 
         // Set end date
-        if (strlen($dc->activeRecord->endDate)) {
+        if (!empty($dc->activeRecord->endDate)) {
             if ($dc->activeRecord->endDate > $dc->activeRecord->startDate) {
                 $intEnd = $dc->activeRecord->endDate;
             } else {
@@ -592,7 +604,7 @@ class tl_calendar_events_ext extends \Backend
         }
 
         // Check if we have time overlapping events
-        $uniqueEvents = (\CalendarModel::findById($dc->activeRecord->pid)->uniqueEvents) ? true : false;
+        $uniqueEvents = (CalendarModel::findById($dc->activeRecord->pid)->uniqueEvents) ? true : false;
         if ($uniqueEvents) {
             // array for events
             $nonUniqueEvents = array();
@@ -620,8 +632,8 @@ class tl_calendar_events_ext extends \Backend
                 }
 
                 if (count($nonUniqueEvents) > 0) {
-                    \Message::addError($GLOBALS['TL_LANG']['tl_calendar_events']['nonUniqueEvents'] . ' (' . implode(',', $nonUniqueEvents) . ')');
-                    $this->redirect($this->addToUrl());
+                    Message::addError($GLOBALS['TL_LANG']['tl_calendar_events']['nonUniqueEvents'] . ' (' . implode(',', $nonUniqueEvents) . ')');
+                    $this->redirect($this->addToUrl(''));
                 }
             }
         }
@@ -630,9 +642,9 @@ class tl_calendar_events_ext extends \Backend
 
 
     /**
-     * @param \DataContainer $dc
+     * @param DataContainer $dc
      */
-    public function adjustTime(\DataContainer $dc)
+    public function adjustTime(DataContainer $dc)
     {
         // Return if there is no active record (override all)
         if (!$dc->activeRecord) {
@@ -648,7 +660,7 @@ class tl_calendar_events_ext extends \Backend
         $arrSet['endTime'] = (int)$dc->activeRecord->startDate;
 
         // Set end date
-        if (strlen($dc->activeRecord->endDate)) {
+        if (!empty($dc->activeRecord->endDate)) {
             if ($dc->activeRecord->endDate > $dc->activeRecord->startDate) {
                 $arrSet['endDate'] = (int)$dc->activeRecord->endDate;
                 $arrSet['endTime'] = (int)$dc->activeRecord->endDate;
@@ -671,7 +683,7 @@ class tl_calendar_events_ext extends \Backend
             //$arrSet['endTime'] = strtotime(date('d.m.Y', $arrSet['endTime']) . ' 23:59:59');
             $arrSet['endTime'] = $arrSet['startTime'];
         } // Adjust end time of "all day" events
-        elseif ((strlen($dc->activeRecord->endDate) && $arrSet['endDate'] == $arrSet['endTime']) || $arrSet['startTime'] == $arrSet['endTime']) {
+        elseif ((!empty($dc->activeRecord->endDate) && $arrSet['endDate'] == $arrSet['endTime']) || $arrSet['startTime'] == $arrSet['endTime']) {
             $arrSet['endTime'] = (strtotime('+ 1 day', $arrSet['endTime']) - 1);
         }
 
@@ -686,7 +698,7 @@ class tl_calendar_events_ext extends \Backend
 
         // Set the repeatEnd date
         $arrFixDates = array();
-        $arrayFixedDates = deserialize($dc->activeRecord->repeatFixedDates) ? deserialize($dc->activeRecord->repeatFixedDates) : null;
+        $arrayFixedDates = StringUtil::deserialize($dc->activeRecord->repeatFixedDates) ? StringUtil::deserialize($dc->activeRecord->repeatFixedDates, true) : null;
         if (!is_null($arrayFixedDates)) {
             usort($arrayFixedDates, function ($a, $b) {
                 $intTimeStampA = strtotime($a["new_repeat"].$a['new_start']);
@@ -696,13 +708,13 @@ class tl_calendar_events_ext extends \Backend
 
             foreach ($arrayFixedDates as $fixedDate) {
                 // Check if we have a date
-                if (!strlen($fixedDate['new_repeat'])) {
+                if (empty($fixedDate['new_repeat'])) {
                     continue;
                 }
 
                 // Check the date
                 try {
-                    $newDate = new \Date($fixedDate['new_repeat']);
+                    $newDate = new Date($fixedDate['new_repeat']);
                 } catch (\Exception $e) {
                     return false;
                 }
@@ -711,10 +723,10 @@ class tl_calendar_events_ext extends \Backend
                 $new_fix_date = $fixedDate['new_repeat'];
 
                 // Check if we have a new start time
-                //$new_fix_start_time = strlen($fixedDate['new_start']) ? $fixedDate['new_start'] : date('H:i', $arrSet['startTime']);
-                $new_fix_start_time = strlen($fixedDate['new_start']) ? date('H:i', $fixedDate['new_start']) : date('H:i', $arrSet['startTime']);
-                //$new_fix_end_time = strlen($fixedDate['new_end']) ? $fixedDate['new_end'] : date('H:i', $arrSet['endTime']);
-                $new_fix_end_time = strlen($fixedDate['new_end']) ? date('H:i', $fixedDate['new_end']) : date('H:i', $arrSet['endTime']);
+                //$new_fix_start_time = !empty($fixedDate['new_start']) ? $fixedDate['new_start'] : date('H:i', $arrSet['startTime']);
+                $new_fix_start_time = !empty($fixedDate['new_start']) ? date('H:i', $fixedDate['new_start']) : date('H:i', $arrSet['startTime']);
+                //$new_fix_end_time = !empty($fixedDate['new_end']) ? $fixedDate['new_end'] : date('H:i', $arrSet['endTime']);
+                $new_fix_end_time = !empty($fixedDate['new_end']) ? date('H:i', $fixedDate['new_end']) : date('H:i', $arrSet['endTime']);
 
                 $new_fix_start_date = strtotime(date("d.m.Y", $new_fix_date) . ' ' . date("H:i", strtotime($new_fix_start_time)));
                 $new_fix_end_date = strtotime(date("d.m.Y", $new_fix_date) . ' ' . date("H:i", strtotime($new_fix_end_time)));
@@ -723,8 +735,8 @@ class tl_calendar_events_ext extends \Backend
                 $arrAllRecurrences[$new_fix_start_date] = array(
                     'int_start' => $new_fix_start_date,
                     'int_end' => $new_fix_end_date,
-                    'str_start' => \Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $new_fix_start_date),
-                    'str_end' => \Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $new_fix_end_date)
+                    'str_start' => Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $new_fix_start_date),
+                    'str_end' => Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $new_fix_end_date)
                 );
                 $maxRepeatEnd[] = $new_fix_end_date;
             }
@@ -736,7 +748,7 @@ class tl_calendar_events_ext extends \Backend
 
         // changed default recurring
         if ($dc->activeRecord->recurring) {
-            $arrRange = deserialize($dc->activeRecord->repeatEach);
+            $arrRange = StringUtil::deserialize($dc->activeRecord->repeatEach, true);
 
             $arg = isset($arrRange['value']) ? $arrRange['value'] * $dc->activeRecord->recurrences : 0;
             $unit = $arrRange['unit'] ?? null;
@@ -757,8 +769,8 @@ class tl_calendar_events_ext extends \Backend
             $arrAllRecurrences[$next] = array(
                 'int_start' => $next,
                 'int_end' => $nextEnd,
-                'str_start' => \Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $next),
-                'str_end' => \Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $nextEnd)
+                'str_start' => Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $next),
+                'str_end' => Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $nextEnd)
             );
 
             if ($count == 0) {
@@ -786,8 +798,8 @@ class tl_calendar_events_ext extends \Backend
                 }
 
                 $value = (int)$arrRange['value'];
-                $wdays = (is_array(deserialize($dc->activeRecord->repeatWeekday)))
-                    ? deserialize($dc->activeRecord->repeatWeekday)
+                $wdays = (is_array(StringUtil::deserialize($dc->activeRecord->repeatWeekday)))
+                    ? StringUtil::deserialize($dc->activeRecord->repeatWeekday)
                     : false;
 
                 if ($unit === 'days' && $value === 1 && $wdays) {
@@ -810,8 +822,8 @@ class tl_calendar_events_ext extends \Backend
                     $arrAllRecurrences[$next] = array(
                         'int_start' => $next,
                         'int_end' => $nextEnd,
-                        'str_start' => \Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $next),
-                        'str_end' => \Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $nextEnd)
+                        'str_start' => Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $next),
+                        'str_end' => Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $nextEnd)
                     );
                 }
 
@@ -830,7 +842,7 @@ class tl_calendar_events_ext extends \Backend
 
         // extended version recurring
         if ($dc->activeRecord->recurringExt) {
-            $arrRange = deserialize($dc->activeRecord->repeatEachExt);
+            $arrRange = StringUtil::deserialize($dc->activeRecord->repeatEachExt, true);
 
             $arg = isset($arrRange['value']) ? $arrRange['value'] : 0;
             $unit = $arrRange['unit'] ?? null;
@@ -854,8 +866,8 @@ class tl_calendar_events_ext extends \Backend
             $arrAllRecurrences[$next] = array(
                 'int_start' => $next,
                 'int_end' => $nextEnd,
-                'str_start' => \Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $next),
-                'str_end' => \Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $nextEnd)
+                'str_start' => Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $next),
+                'str_end' => Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $nextEnd)
             );
 
             if ($count > 0) {
@@ -881,8 +893,8 @@ class tl_calendar_events_ext extends \Backend
                     $arrAllRecurrences[$next] = array(
                         'int_start' => $next,
                         'int_end' => $nextEnd,
-                        'str_start' => \Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $next),
-                        'str_end' => \Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $nextEnd)
+                        'str_start' => Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $next),
+                        'str_end' => Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $nextEnd)
                     );
 
                     //check if have the configured max value
@@ -940,7 +952,7 @@ class tl_calendar_events_ext extends \Backend
                 $unit = $GLOBALS['TL_CONFIG']['tl_calendar_events']['weekdays'][$dc->activeRecord->weekday];
 
                 // exception rules
-                $rows = deserialize($dc->activeRecord->repeatExceptionsInt);
+                $rows = StringUtil::deserialize($dc->activeRecord->repeatExceptionsInt, true);
 
                 // run thru all dates
                 foreach ($rows as $row) {
@@ -993,10 +1005,10 @@ class tl_calendar_events_ext extends \Backend
             // ... and last but not least by range
             if ($dc->activeRecord->repeatExceptionsPer) {
                 // exception rules
-                $rows = deserialize($dc->activeRecord->repeatExceptionsPer);
+                $rows = StringUtil::deserialize($dc->activeRecord->repeatExceptionsPer, true);
 
                 // all recurrences...
-                $repeatDates = deserialize($dc->activeRecord->repeatDates);
+                $repeatDates = StringUtil::deserialize($dc->activeRecord->repeatDates, true);
 
                 // run thru all dates
                 foreach ($rows as $row) {
@@ -1031,7 +1043,7 @@ class tl_calendar_events_ext extends \Backend
 
             // first we check the exceptions by date...
             if ($dc->activeRecord->repeatExceptions) {
-                $rows = deserialize($dc->activeRecord->repeatExceptions);
+                $rows = StringUtil::deserialize($dc->activeRecord->repeatExceptions, true);
                 // set repeatEnd
                 // my be we have an exception move that is later then the repeatEnd
                 foreach ($rows as $row) {
@@ -1072,8 +1084,8 @@ class tl_calendar_events_ext extends \Backend
                             $arrAllRecurrences[$dateToFind] = array(
                                 'int_start'     => $dateToSave,
                                 'int_end'       => $dateToSaveEnd,
-                                'str_start'     => \Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $dateToSave),
-                                'str_end'       => \Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $dateToSaveEnd),
+                                'str_start'     => Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $dateToSave),
+                                'str_end'       => Date::parse($GLOBALS['TL_CONFIG']['datimFormat'], $dateToSaveEnd),
                                 'moveReason'    => ($row['reason']) ? $row['reason'] : ''
                             );
                         }
@@ -1115,11 +1127,11 @@ class tl_calendar_events_ext extends \Backend
 
     /**
      * @param $dc
-     * @return string
+     * @return string|array
      */
     public function getmaxperson($var, $dc)
     {
-        $values = deserialize($var);
+        $values = StringUtil::deserialize($var);
         if (!is_array($values)) {
             $values = array();
             $values[0]['mini'] = 0;
@@ -1205,23 +1217,23 @@ class tl_calendar_events_ext extends \Backend
         $arrSource3 = array();
         $arrSource4 = array();
 
-        if (\Input::get('id')) {
+        if (Input::get('id')) {
             // Probably an AJAX request where activeRecord is not available
             if ($activeRecord === null) {
-                $activeRecord = \Database::getInstance()
+                $activeRecord = Database::getInstance()
                     ->prepare("SELECT * FROM {$var1->strTable} WHERE id=?")
                     ->limit(1)
-                    ->execute(\Input::get('id'))
+                    ->execute(Input::get('id'))
                 ;
             }
 
             if ($activeRecord->repeatDates) {
-                $arrDates = deserialize($activeRecord->repeatDates);
+                $arrDates = StringUtil::deserialize($activeRecord->repeatDates, true);
                 if (is_array($arrDates)) {
                     if ($var1->id == "repeatExceptions") {
                         // fill array for option date
                         foreach ($arrDates as $k => $arrDate) {
-                            $date = \Date::parse($GLOBALS['TL_CONFIG']['dateFormat'], $k);
+                            $date = Date::parse($GLOBALS['TL_CONFIG']['dateFormat'], $k);
                             $arrSource1[$k] = $date;
                         }
                     }
@@ -1248,7 +1260,7 @@ class tl_calendar_events_ext extends \Backend
             $start = strtotime($start);
             $end = strtotime($end);
             while ($start <= $end) {
-                $newTime = \Date::parse($GLOBALS['TL_CONFIG']['timeFormat'], $start);
+                $newTime = Date::parse($GLOBALS['TL_CONFIG']['timeFormat'], $start);
                 $arrSource4[$newTime] = $newTime;
                 $start = strtotime('+ ' . $interval . ' minutes', $start);
             }
@@ -1346,11 +1358,11 @@ class tl_calendar_events_ext extends \Backend
             );
 
             // add the field to the columnFields array
-            array_insert($columnFields, 0, array("exceptionTo" => $secondField));
+            ArrayUtil::arrayInsert($columnFields, 0, array("exceptionTo" => $secondField));
         }
 
         // add the field to the columnFields array
-        array_insert($columnFields, 0, array("exception" => $firstField));
+        ArrayUtil::arrayInsert($columnFields, 0, array("exception" => $firstField));
 
         return $columnFields;
     }
@@ -1405,9 +1417,9 @@ class tl_calendar_events_ext extends \Backend
     public function listRegForms($a)
     {
         if ($this->User->isAdmin) {
-            $objForms = \FormModel::findAll();
+            $objForms = FormModel::findAll();
         } else {
-            $objForms = \FormModel::findMultipleByIds($this->User->forms);
+            $objForms = FormModel::findMultipleByIds($this->User->forms);
         }
 
         $return = array();

@@ -11,6 +11,8 @@
  * @copyright Kester Mielke 2010-2013
  */
 
+use Contao\ArrayUtil;
+
 
 /**
  * Table tl_calendar
@@ -22,8 +24,8 @@ $GLOBALS['TL_DCA']['tl_calendar']['palettes']['default'] = str_replace
     $GLOBALS['TL_DCA']['tl_calendar']['palettes']['default']
 );
 
-array_insert($GLOBALS['TL_DCA']['tl_calendar']['palettes']['__selector__'], 99, 'isHolidayCal');
-array_insert($GLOBALS['TL_DCA']['tl_calendar']['subpalettes'], 99, array('isHolidayCal' => 'allowEvents'));
+ArrayUtil::arrayInsert($GLOBALS['TL_DCA']['tl_calendar']['palettes']['__selector__'], 99, 'isHolidayCal');
+ArrayUtil::arrayInsert($GLOBALS['TL_DCA']['tl_calendar']['subpalettes'], 99, array('isHolidayCal' => 'allowEvents'));
 
 // Hinzufügen der Feld-Konfiguration
 $GLOBALS['TL_DCA']['tl_calendar']['fields']['bg_color'] = array
